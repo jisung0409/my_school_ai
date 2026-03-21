@@ -99,10 +99,8 @@ if st.button("🧠 AI 전문가의 딥-분석 시작"):
         try:
             # API 설정
             genai.configure(api_key=user_api_key)
-            
-            # [핵심] 404 에러를 피하기 위해 가장 표준적이고 안정적인 1.0-pro 모델 사용
-            model = genai.GenerativeModel('gemini-1.0-pro')
-            
+            model = genai.GenerativeModel('gemini-1.5-flash')
+        
             prompt = f"""
             너는 강화고등학교의 보건 선생님이자 영양 전문 AI야. 
             아래 데이터를 바탕으로 {target_date_pretty} 리포트를 작성해줘.
