@@ -101,7 +101,7 @@ if st.button("🧠 AI 전문가의 컨디션 딥-분석 시작"):
     else:
         try:
             genai.configure(api_key=user_api_key)
-            model = genai.GenerativeModel('models/gemini-1.5-pro')
+            model = genai.GenerativeModel('models/gemini-1.5-flash')
             
             store_txt = "\n".join([f"- {k}: {', '.join(v)}" for k, v in STORE_ITEMS.items()])
             
