@@ -97,10 +97,27 @@ if st.button("🧠 AI 전문가의 딥-분석 시작"):
         st.error("왼쪽 사이드바에 Gemini API Key를 입력해 주세요!")
     else:
         try:
-            # API 설정
-            genai.configure(api_key=user_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-        
+            # 1. 공백 제거 및 설정
+            api_key = user_api_key.strip()
+            genai.configure(api_key=api_key)
+            
+            # 2. 내 키가 쓸 수 있는 모델 중 가장 좋은 거 하나 고르기
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            
+            if not available_models:
+                st.error("이 키로 사용할 수 있는 모델이 하나도 없습니다.")
+            else:
+                # 1.5-flash가 있으면 쓰고, 없으면 첫 번째 모델 선택
+                target_model = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in available_models else available_models[0]
+                st.info(f"🛰️ 사용 중인 모델: {target_model}")
+                
+                model = genai.GenerativeModel(target_model)
+                response = model.generate_content(f"{current_meal} 분석해줘.")
+                st.write(response.text)
+                st.balloons()
+                
+        except Exception as e:
+            st.error(f"❌ 최종 오류 발생: {e}")
             prompt = f"""
             너는 강화고등학교의 보건 선생님이자 영양 전문 AI야. 
             아래 데이터를 바탕으로 {target_date_pretty} 리포트를 작성해줘.
