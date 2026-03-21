@@ -109,7 +109,7 @@ if st.button("🧠 AI 전문가의 컨디션 딥-분석 시작"):
             genai.configure(api_key=user_api_key)
             
             # 404 에러 방지를 위한 표준 모델 호출 (Pro 우선, 에러시 Flash 권장)
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             
             store_txt = "\n".join([f"- {k}: {', '.join(v)}" for k, v in STORE_ITEMS.items()])
             context = "특히 월요일 아침 컨디션과 '월요병' 예방을 중심으로 조언해줘." if is_weekend else "오늘 오후 수업 집중력을 극대화할 수 있게 도와줘."
