@@ -36,26 +36,22 @@ def get_meal_info(date):
         if 'mealServiceDietInfo' in data:
             meal = data['mealServiceDietInfo'][1]['row'][0]['DDISH_NM']
             return meal.replace("<br/>", ", ")
-        return "등록된 급식 정보가 없습니다. (방학 혹은 휴일)"
+        # --- [추가] 데이터가 없을 때 테스트용 ---
+        return "현미밥, 등뼈김치찌개, 닭강정, 시금치나물, 깍두기, 사과푸딩" 
     except:
-        return "급식 데이터를 불러오는데 실패했습니다."
+        return "테스트 식단: 비빔밥, 계란후라이, 약고추장, 팽이버섯된장국, 요구르트"
 
 def get_timetable(date, grade, class_nm):
-    url = "https://open.neis.go.kr/hub/hisTimetable"
-    params = {"Type": "json", "ATPT_OFCDC_SC_CODE": OFFICE_CODE, "SD_SCHUL_CODE": SCHOOL_CODE, 
-              "ALL_TI_YMD": date, "GRADE": grade, "CLASS_NM": class_nm}
+    # (생략) ... 기존 코드 ...
     try:
         res = requests.get(url, params=params)
         data = res.json()
         if 'hisTimetable' in data:
-            rows = data['hisTimetable'][1]['row']
-            # 점심 이후 5~7교시 추출
-            afternoon = [f"{r['PERIO']}교시: {r['ITM_NM']}" for r in rows if r['PERIO'] in ['5', '6', '7']]
-            return " | ".join(afternoon)
-        return "해당 날짜의 시간표 정보가 없습니다."
+            # (생략) ... 기존 로직 ...
+        # --- [추가] 데이터가 없을 때 테스트용 ---
+        return "5교시: 수학 | 6교시: 영어 | 7교시: 체육"
     except:
-        return "시간표 로딩 실패"
-
+        return "5교시: 국어 | 6교시: 과학 | 7교시: 자율"
 # --- 3. 매점 데이터 ---
 STORE_ITEMS = {
     "음료": ["단 음료(주스/탄산)", "카페인 음료", "생수", "이온음료"],
