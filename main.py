@@ -1,6 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-from neispy import Client
+from neispy.client import Neispy  # <--- 이 방식으로 바꿔보세요!
 import datetime
 import asyncio
 
@@ -18,24 +18,25 @@ display_date = now.strftime("%m월 %d일")
 
 # --- [3] 데이터 수집 로직 수정본 ---
 async def get_data(grade, class_nm):
-    # Neis(KEY=...) 대신 Client(KEY=...) 사용
-    async with Client(KEY=NEIS_KEY) as neis:
-        try:
-            # 급식 정보
-            meal_data = await neis.mealServiceDietInfo(EDU_CODE, SCH_CODE, MLSV_YMD=target_date)
-            meal_list = meal_data[0].DDISH_NM.replace("<br/>", ", ")
-        except:
-            meal_list = None
+    # Neispy 객체 생성
+    neis = Neispy(KEY=NEIS_KEY) 
+    
+    try:
+        # 급식 정보
+        meal_data = await neis.mealServiceDietInfo(EDU_CODE, SCH_CODE, MLSV_YMD=target_date)
+        meal_list = meal_data[0].DDISH_NM.replace("<br/>", ", ")
+    except Exception as e:
+        meal_list = None
 
-        try:
-            # 시간표 정보
-            tt_data = await neis.hisTimetable(EDU_CODE, SCH_CODE, ALL_TI_YMD=target_date, GRADE=grade, CLASS_NM=class_nm)
-            afternoon = [f"{t.PERIO}교시: {t.ITM_NM}" for t in tt_data if t.PERIO in ['5', '6', '7']]
-            timetable = " | ".join(afternoon)
-        except:
-            timetable = None
-            
-        return meal_list, timetable
+    try:
+        # 시간표 정보
+        tt_data = await neis.hisTimetable(EDU_CODE, SCH_CODE, ALL_TI_YMD=target_date, GRADE=grade, CLASS_NM=class_nm)
+        afternoon = [f"{t.PERIO}교시: {t.ITM_NM}" for t in tt_data if t.PERIO in ['5', '6', '7']]
+        timetable = " | ".join(afternoon)
+    except Exception as e:
+        timetable = None
+        
+    return meal_list, timetable
 
 # --- [4] UI 구성 ---
 st.set_page_config(page_title="강화고 AI 매니저", page_icon="🛡️")
