@@ -12,9 +12,20 @@ SCH_CODE = "7311068"
 EDU_CODE = "E10"
 
 # --- [2] 날짜 설정 ---
-now = datetime.datetime.now()
-target_date = now.strftime("%Y%m%d")
-display_date = now.strftime("%m월 %d일")
+import datetime
+
+# --- [2] 날짜 로직 (한국 시간 KST 설정) ---
+def get_target_info():
+    # 서버 시간(UTC) 가져오기
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    # 한국 시간으로 변환 (UTC+9)
+    kst_now = utc_now + datetime.timedelta(hours=9)
+    
+    target_date_str = kst_now.strftime("%Y%m%d")
+    target_date_pretty = kst_now.strftime("%m월 %d일")
+    return target_date_str, target_date_pretty
+
+target_date_str, target_date_pretty = get_target_info()
 
 # --- [3] 데이터 수집 로직 수정본 ---
 async def get_data(grade, class_nm):
