@@ -59,14 +59,23 @@ else:
 st.info(f"📅 **{display_date}** 실시간 데이터 분석")
 col1, col2 = st.columns(2)
 
+# 급식 정보 표시 부분
 with col1:
     st.subheader("🍱 오늘의 급식")
-    final_meal = st.text_area("식단", value=meal if meal else "", placeholder="데이터가 없으면 직접 입력하세요.", height=100)
+    if "INFO-200" in str(meal) or not meal:
+        st.warning("📍 학교에서 아직 급식을 등록하지 않았네요!")
+        final_meal = st.text_area("오늘 메뉴를 직접 적어주면 AI가 분석해줄게요!", placeholder="예: 제육볶음, 된장찌개...", height=150)
+    else:
+        final_meal = st.text_area("식단 확인 (수정 가능)", value=meal, height=150)
 
+# 시간표 정보 표시 부분
 with col2:
-    st.subheader("📅 오후 수업 (5-7교시)")
-    final_timetable = st.text_area("시간표", value=tt if tt else "", placeholder="데이터가 없으면 직접 입력하세요.", height=100)
-
+    st.subheader("📅 오후 수업")
+    if "INFO-200" in str(tt) or not tt:
+        st.warning("📍 시간표 정보가 등록되지 않았습니다.")
+        final_timetable = st.text_area("오후 수업(5-7교시)을 적어주세요!", placeholder="예: 5교시 수학...", height=150)
+    else:
+        final_timetable = st.text_area("시간표 확인 (수정 가능)", value=tt, height=150)
 # --- [5] Gemini 2.5 분석 실행 ---
 if st.button("🧠 AI 분석 리포트 생성"):
     if not GEMINI_KEY:
