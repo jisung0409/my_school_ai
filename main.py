@@ -16,28 +16,26 @@ now = datetime.datetime.now()
 target_date = now.strftime("%Y%m%d")
 display_date = now.strftime("%m월 %d일")
 
-# --- [3] 데이터 수집 로직 (neis-api 활용) ---
+# --- [3] 데이터 수집 로직 수정본 ---
 async def get_data(grade, class_nm):
-    # 라이브러리 객체 생성
-    neis = Neis(KEY=NEIS_KEY)
-    
-    try:
-        # 1. 급식 정보 가져오기
-        meal_data = await neis.mealServiceDietInfo(EDU_CODE, SCH_CODE, MLSV_YMD=target_date)
-        meal_list = meal_data[0].DDISH_NM.replace("<br/>", ", ")
-    except:
-        meal_list = None
+    # Neis(KEY=...) 대신 Client(KEY=...) 사용
+    async with Client(KEY=NEIS_KEY) as neis:
+        try:
+            # 급식 정보
+            meal_data = await neis.mealServiceDietInfo(EDU_CODE, SCH_CODE, MLSV_YMD=target_date)
+            meal_list = meal_data[0].DDISH_NM.replace("<br/>", ", ")
+        except:
+            meal_list = None
 
-    try:
-        # 2. 시간표 정보 가져오기 (고등학교 기준 hisTimetable)
-        tt_data = await neis.hisTimetable(EDU_CODE, SCH_CODE, ALL_TI_YMD=target_date, GRADE=grade, CLASS_NM=class_nm)
-        # 5, 6, 7교시만 추출
-        afternoon = [f"{t.PERIO}교시: {t.ITM_NM}" for t in tt_data if t.PERIO in ['5', '6', '7']]
-        timetable = " | ".join(afternoon)
-    except:
-        timetable = None
-        
-    return meal_list, timetable
+        try:
+            # 시간표 정보
+            tt_data = await neis.hisTimetable(EDU_CODE, SCH_CODE, ALL_TI_YMD=target_date, GRADE=grade, CLASS_NM=class_nm)
+            afternoon = [f"{t.PERIO}교시: {t.ITM_NM}" for t in tt_data if t.PERIO in ['5', '6', '7']]
+            timetable = " | ".join(afternoon)
+        except:
+            timetable = None
+            
+        return meal_list, timetable
 
 # --- [4] UI 구성 ---
 st.set_page_config(page_title="강화고 AI 매니저", page_icon="🛡️")
