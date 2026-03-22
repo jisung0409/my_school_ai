@@ -3,63 +3,75 @@ import requests
 import datetime
 import google.generativeai as genai
 
-# --- [1] 학교 및 지역 설정 ---
+# --- [1] 학교 및 지역 설정 (강화고등학교) ---
 OFFICE_CODE = "E10"  # 인천광역시교육청
 SCHOOL_CODE = "7311068" # 강화고등학교
 
-# --- [2] 날짜 로직 (주말엔 월요일 데이터로 점프) ---
+# --- [2] 날짜 로직 (오늘 날짜 기준) ---
 def get_target_info():
     now = datetime.datetime.now()
-    weekday = now.weekday()  # 월:0, 화:1, ..., 토:5, 일:6
-    
-    is_weekend = False
-    if weekday == 5: # 토요일 -> 월요일(+2일)
-        target = now + datetime.timedelta(days=2)
-        is_weekend = True
-    elif weekday == 6: # 일요일 -> 월요일(+1일)
-        target = now + datetime.timedelta(days=1)
-        is_weekend = True
-    else:
-        target = now
-        
-    return target.strftime("%Y%m%d"), is_weekend, target.strftime("%m월 %d일")
+    # API 조회를 위한 YYYYMMDD 형식
+    target_date_str = now.strftime("%Y%m%d")
+    # 화면 표시를 위한 월/일 형식
+    target_date_pretty = now.strftime("%m월 %d일")
+    return target_date_str, target_date_pretty
 
-target_date_str, is_weekend, target_date_pretty = get_target_info()
+target_date_str, target_date_pretty = get_target_info()
 
-# --- [3] 데이터 수집 (나이스 API + 테스트 데이터) ---
+# --- [3] 실시간 급식 데이터 가져오기 (나이스 API) ---
 def get_meal_info(date):
     url = "https://open.neis.go.kr/hub/mealServiceDietInfo"
-    params = {"Type": "json", "ATPT_OFCDC_SC_CODE": OFFICE_CODE, "SD_SCHUL_CODE": SCHOOL_CODE, "MLSV_YMD": date}
+    params = {
+        "Type": "json",
+        "ATPT_OFCDC_SC_CODE": OFFICE_CODE,
+        "SD_SCHUL_CODE": SCHOOL_CODE,
+        "MLSV_YMD": date
+    }
     try:
         res = requests.get(url, params=params)
         data = res.json()
         if 'mealServiceDietInfo' in data:
+            # 급식 메뉴 문자열 정리 (줄바꿈 제거 및 쉼표 처리)
             meal = data['mealServiceDietInfo'][1]['row'][0]['DDISH_NM']
-            return meal.replace("<br/>", ", ")
-        return "현미밥, 등뼈김치찌개, 닭강정, 시금치나물, 깍두기, 사과푸딩 (테스트용)"
-    except:
-        return "데이터를 불러올 수 없습니다."
+            clean_meal = meal.replace("<br/>", ", ")
+            # 알레르기 정보 숫자 제거 (선택 사항)
+            import re
+            clean_meal = re.sub(r'\([0-9.]+\)', '', clean_meal)
+            return clean_meal
+        return "⚠️ 오늘 급식 정보가 등록되지 않았습니다."
+    except Exception as e:
+        return f"❌ 급식 데이터를 가져오는 중 오류 발생: {e}"
 
+# --- [4] 실시간 시간표 데이터 가져오기 (나이스 API) ---
 def get_timetable(date, grade, class_nm):
     url = "https://open.neis.go.kr/hub/hisTimetable"
-    params = {"Type": "json", "ATPT_OFCDC_SC_CODE": OFFICE_CODE, "SD_SCHUL_CODE": SCHOOL_CODE, 
-              "ALL_TI_YMD": date, "GRADE": grade, "CLASS_NM": class_nm}
+    params = {
+        "Type": "json",
+        "ATPT_OFCDC_SC_CODE": OFFICE_CODE,
+        "SD_SCHUL_CODE": SCHOOL_CODE, 
+        "ALL_TI_YMD": date,
+        "GRADE": grade,
+        "CLASS_NM": class_nm
+    }
     try:
         res = requests.get(url, params=params)
         data = res.json()
         if 'hisTimetable' in data:
             rows = data['hisTimetable'][1]['row']
+            # 오후 수업(5, 6, 7교시)만 필터링
             afternoon = [f"{r['PERIO']}교시: {r['ITM_NM']}" for r in rows if r['PERIO'] in ['5', '6', '7']]
+            if not afternoon:
+                return "오후 수업 정보가 없습니다."
             return " | ".join(afternoon)
-        return "5교시: 수학 | 6교시: 영어 | 7교시: 체육 (테스트용)"
-    except:
-        return "시간표 정보 없음"
+        return "⚠️ 오늘 시간표 정보가 등록되지 않았습니다."
+    except Exception as e:
+        return f"❌ 시간표 데이터를 가져오는 중 오류 발생: {e}"
 
-# --- [4] UI 구성 및 API 키 로직 ---
+# --- [5] UI 구성 및 API 키 설정 ---
 st.set_page_config(page_title="강화고 AI 매니저", page_icon="🛡️", layout="wide")
-st.title("🛡️ 강화고 AI 컨디션 매니저")
+st.title("🛡️ 강화고 실시간 AI 컨디션 매니저")
 
-# API 키 가져오기 (Secrets 우선, 없으면 사이드바 입력)
+# API 키 우선순위: Secrets -> Sidebar
 api_key = ""
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -72,57 +84,58 @@ else:
 
 with st.sidebar:
     st.divider()
+    st.header("👤 학생 정보")
     grade = st.selectbox("학년", ["1", "2", "3"])
     class_num = st.number_input("반", min_value=1, max_value=15, value=1)
 
-# 상태 안내
-if is_weekend:
-    st.success(f"🌟 **주말 모드** | 내일 월요일({target_date_pretty})의 컨디션을 분석합니다.")
-else:
-    st.info(f"📅 **평일 모드** | 오늘({target_date_pretty})의 데이터를 분석합니다.")
-
+# 데이터 로딩
+st.info(f"📅 **{target_date_pretty}**의 실시간 데이터를 분석합니다.")
 current_meal = get_meal_info(target_date_str)
 current_timetable = get_timetable(target_date_str, grade, str(class_num))
 
+# 대시보드 출력
 col1, col2 = st.columns(2)
 with col1:
-    st.subheader("🍱 분석 대상 식단")
-    st.info(current_meal)
+    st.subheader("🍱 오늘의 급식")
+    st.success(current_meal)
 with col2:
     st.subheader("📅 오후 수업 (5-7교시)")
     st.warning(current_timetable)
 
-# --- [5] AI 분석 실행 (Gemini 2.5-flash 기준) ---
-if st.button("🧠 AI 전문가의 딥-분석 시작"):
+# --- [6] AI 분석 실행 (Gemini 2.5-flash) ---
+if st.button("🧠 실시간 데이터 기반 AI 분석 시작"):
     if not api_key:
-        st.error("사이드바에 API 키를 입력하거나 Secrets 설정을 확인해 주세요!")
+        st.error("API 키를 입력하거나 Secrets 설정을 완료해 주세요!")
+    elif "정보가 등록되지 않았습니다" in current_meal:
+        st.error("분석할 급식 데이터가 없습니다. 학교에서 식단을 등록했는지 확인해 주세요.")
     else:
         try:
             genai.configure(api_key=api_key)
-            # 확인된 차세대 모델 사용
             model = genai.GenerativeModel('gemini-2.5-flash')
             
             prompt = f"""
             너는 강화고등학교의 보건 선생님이자 영양사야. 
-            날짜: {target_date_pretty}
-            식단: {current_meal}
-            수업: {current_timetable}
+            오늘의 실제 데이터({target_date_pretty})를 바탕으로 학생들에게 맞춤형 컨디션 리포트를 작성해줘.
 
-            위 데이터를 바탕으로:
-            1. 혈당 스파이크 지수 (게이지 표시)
-            2. 최적의 식사 순서 가이드
-            3. 오후 수업 집중력 팁 (과목별 맞춤형)
-            4. 추천 매점 간식 1개
+            [입력 데이터]
+            - 식단: {current_meal}
+            - 오후 수업: {current_timetable}
 
-            학생들에게 말하듯 친근하고 힙하게, 이모지를 섞어서 써줘!
+            [작성 항목]
+            1. 오늘의 혈당 스파이크 위험도 (시각적 게이지 포함)
+            2. 급식 메뉴를 활용한 최적의 식사 순서 (식이섬유-단백질-탄수화물 순)
+            3. 오후 수업 과목들을 고려한 집중력 유지 전략
+            4. 오늘 컨디션에 딱 맞는 강화고인의 응원 한마디
+
+            강화고 학생들에게 친근한 형/누나처럼 힙하게, 이모지를 듬뿍 섞어서 작성해줘!
             """
             
-            with st.spinner('차세대 모델이 분석 중입니다...'):
+            with st.spinner('실시간 데이터를 바탕으로 보건 선생님이 분석 중...'):
                 response = model.generate_content(prompt)
                 st.balloons()
                 st.markdown("---")
-                st.subheader(f"📝 {target_date_pretty} AI 컨디션 리포트")
+                st.subheader(f"📝 {target_date_pretty} 실시간 컨디션 리포트")
                 st.markdown(response.text)
                 
         except Exception as e:
-            st.error(f"오류 발생: {e}")
+            st.error(f"AI 분석 중 오류 발생: {e}")
