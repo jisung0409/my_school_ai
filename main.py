@@ -1,6 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-from neispy import Neis # neis-api 라이브러리 임포트
+from neispy import Client
 import datetime
 import asyncio
 
